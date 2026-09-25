@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion de Stock</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f5f7f6;color:#222}
+header{background:#16834a;color:white;padding:18px;text-align:center}
+header h1{margin:0 0 8px;font-size:25px}
+#titreOperation{font-size:17px}
+.container{max-width:900px;margin:20px auto;padding:20px;background:white;border-radius:12px;box-shadow:0 2px 10px #0002}
+input,select,button{width:100%;height:48px;margin:7px 0;border-radius:8px;border:1px solid #ccc;font-size:16px}
+input,select{padding:0 12px}
+button{border:none;background:#16834a;color:white;font-weight:bold;cursor:pointer}
+button:hover{opacity:.9}
+.buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+#btnRecherche{background:#555}
+#btnEntree{background:#16834a}
+#btnSortie{background:#d9534f}
+#btnRayons{background:#16834a}
+#status{margin-top:10px;padding:12px;border-radius:8px;background:#eef7f1;color:#16834a;font-weight:bold;text-align:center;min-height:20px}
+table{width:100%;border-collapse:collapse;margin-top:20px}
+th,td{border:1px solid #ddd;padding:10px;text-align:center}
+th{background:#16834a;color:white}
+#loginBox{display:block;position:fixed;top:0;left:0;right:0;bottom:0;max-width:none;margin:0;padding:80px 20px;background:white;z-index:9999}
+#loginBox h2{text-align:center;color:#16834a;margin-bottom:30px}
+#loginBox input,#loginBox button{display:block;max-width:400px;margin:10px auto}
+#userInfo{display:none;max-width:900px;margin:10px auto;padding:10px 20px;background:#eaf4ee;color:#16834a;font-weight:bold;border-radius:8px}
+#userInfo button{width:auto;height:40px;margin-left:15px;padding:0 15px;background:#d9534f}
+#rayonsBox{font-size:20px}
+#rayonsBox input,#rayonsBox button{font-size:18px}
+#rayonsBox h3{font-size:23px}
+.rayonItem{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;margin-bottom:7px;background:white;border-radius:6px;border:1px solid #ddd}
+.rayonName{font-size:18px;flex:1}
+.rayonActions{display:flex;gap:5px}
+.rayonActions button{width:auto;height:40px;margin:0;padding:0 10px;font-size:14px}
+.btnSupprimerRayon{background:#d9534f}
+.btnModifierRayon{background:#16834a}
+.btnProduitsRayon{background:#555}
+#produitsBox{display:none;margin:15px 0;padding:15px;border:1px solid #ddd;border-radius:10px;background:#f8f8f8}
+#produitsBox h3{margin-top:0;color:#16834a}
+#produitsListe{max-height:55vh;overflow-y:auto}
+.produitItem{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px;margin-bottom:6px;background:white;border:1px solid #ddd;border-radius:7px}
+.produitCode{font-weight:bold;word-break:break-all}
+.btnSupprimerProduit{width:auto;height:38px;margin:0;padding:0 12px;background:#d9534f;font-size:14px}
+.btnSupprimerSelection{background:#d9534f;margin-top:12px}
+.selectionProduit{width:24px;height:24px;margin:0;flex-shrink:0}
+.produitItem{justify-content:flex-start}
+.produitCode{flex:1;text-align:left}
+.emptyMessage{text-align:center;padding:15px;color:#777}
+#tableStockTitle{margin-top:20px;color:#16834a}
+@media(max-width:700px){
+.buttons{grid-template-columns:1fr}
+.container{margin:10px;padding:15px}
+#userInfo{margin:10px}
+#userInfo button{display:block;margin:8px 0 0;width:100%}
+table{font-size:14px}
+th,td{padding:8px 5px}
+.rayonItem{align-items:flex-start;flex-direction:column}
+.rayonActions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}
+.rayonActions button{width:100%}
+.produitItem{align-items:flex-start}
+.btnSupprimerProduit{flex-shrink:0}
+}
+</style>
+</head>
+<body>
+
+<div id="loginBox">
+<h2>🔐 Connexion</h2>
+<input id="loginNom" type="text" placeholder="Nom de l'employé" autocomplete="off">
+<input id="loginPassword" type="password" placeholder="Mot de passe">
+<button onclick="connexion()">Connexion</button>
+</div>
+
+<header id="mainHeader" style="display:none;">
+<h1>Gestion de Stock</h1>
+<div id="titreOperation">Entrée rapide</div>
+</header>
+
+<div id="userInfo">
+👤 Connecté : <span id="nomUtilisateur"></span>
+<button onclick="deconnexion()">🔴 Déconnexion</button>
+</div>
+
+<div id="mainContainer" class="container" style="display:none;">
+
+<div class="buttons">
+<button id="btnRecherche" onclick="activerRecherche()">🔎 Recherche</button>
+<button id="btnEntree" onclick="changerMode('entree')">📥 Entrée</button>
+<button id="btnSortie" onclick="changerMode('sortie')">📤 Sortie</button>
+<button id="btnRayons" onclick="gererRayons()">📦 Gestion des rayons</button>
+</div>
+
+<div id="rayonsBox" style="display:none;margin:15px 0;padding:15px;border:1px solid #ddd;border-radius:10px;background:#f8f8f8;">
+<h3>📦 Gestion des rayons</h3>
+<input id="nouveauRayon" type="text" placeholder="Nom du rayon" autocomplete="off">
+<button onclick="ajouterRayon()">➕ Ajouter</button>
+<div id="listeRayons" style="margin-top:15px;"></div>
+<button onclick="fermerGestionRayons()" style="margin-top:10px;">✖ Fermer</button>
+</div>
+
+<div id="produitsBox">
+<h3 id="produitsTitre">📋 Produits du rayon</h3>
+<div id="produitsListe"></div>
+<button id="btnSupprimerSelection" class="btnSupprimerSelection" onclick="supprimerProduitsSelectionnes()">🗑️ Supprimer les produits sélectionnés</button>
+<button onclick="fermerProduits()">✖ Fermer les produits</button>
+</div>
+
+<select id="rayon">
+<option value="">Choisir un rayon</option>
+</select>
+
+<input id="barcode" type="text" placeholder="Scanner ou saisir le code-barres" autocomplete="off">
+
+<div id="status">Prêt</div>
+
+<h3 id="tableStockTitle">📊 Stock par rayon</h3>
+<table>
+<thead>
+<tr><th>Rayon</th><th>Stock</th></tr>
+</thead>
+<tbody id="liste"></tbody>
+</table>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+let mode="entree";
+let utilisateurConnecte=null;
+let rayons=[];
+
+const SUPABASE_URL="https://ybxowdzeasqojzaklqfa.supabase.co";
+const SUPABASE_KEY="sb_publishable_c-aP-0yw5vE5VyQXgsv28Q_au0HxE3O";
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const administrateur={
+nom:"sendbox",
+motDePasse:"123456",
+admin:true,
+entree:true,
+sortie:true,
+recherche:true
+};
+
+function connexion(){
+const nom=document.getElementById("loginNom").value.trim();
+const motDePasse=document.getElementById("loginPassword").value;
+if(nom.toLowerCase()===administrateur.nom.toLowerCase() && motDePasse===administrateur.motDePasse){
+utilisateurConnecte=administrateur;
+document.getElementById("loginBox").style.display="none";
+document.getElementById("mainHeader").style.display="block";
+document.getElementById("userInfo").style.display="block";
+document.getElementById("mainContainer").style.display="block";
+document.getElementById("nomUtilisateur").textContent=utilisateurConnecte.nom;
+chargerRayons();
+afficher();
+changerMode("entree");
+return;
+}
+alert("Nom d'utilisateur ou mot de passe incorrect.");
+document.getElementById("loginPassword").value="";
+document.getElementById("loginPassword").focus();
+}
+
+function deconnexion(){
+utilisateurConnecte=null;
+document.getElementById("userInfo").style.display="none";
+document.getElementById("mainContainer").style.display="none";
+document.getElementById("mainHeader").style.display="none";
+document.getElementById("rayonsBox").style.display="none";
+document.getElementById("produitsBox").style.display="none";
+document.getElementById("loginBox").style.display="block";
+document.getElementById("loginNom").value="";
+document.getElementById("loginPassword").value="";
+document.getElementById("loginNom").focus();
+}
+
+function changerMode(nouveauMode){
+if(!utilisateurConnecte)return;
+if(nouveauMode==="entree"&&!utilisateurConnecte.entree){
+alert("❌ Vous n'avez pas l'autorisation pour l'entrée.");return;
+}
+if(nouveauMode==="sortie"&&!utilisateurConnecte.sortie){
+alert("❌ Vous n'avez pas l'autorisation pour la sortie.");return;
+}
+mode=nouveauMode;
+document.getElementById("titreOperation").textContent=mode==="entree"?"Entrée rapide":"Sortie rapide";
+document.getElementById("status").textContent=mode==="entree"?"📥 Mode Entrée":"📤 Mode Sortie";
+document.getElementById("barcode").focus();
+}
+
+function activerRecherche(){
+if(!utilisateurConnecte)return;
+if(!utilisateurConnecte.recherche){
+alert("❌ Vous n'avez pas l'autorisation pour la recherche.");return;
+}
+mode="recherche";
+document.getElementById("titreOperation").textContent="Recherche";
+document.getElementById("status").textContent="🔎 Mode Recherche";
+document.getElementById("barcode").focus();
+}
+
+/* Stock = nombre de produits uniques réellement présents dans chaque rayon.
+   La colonne quantity n'est plus utilisée pour le comptage. */
+async function afficher(){
+const tbody=document.getElementById("liste");
+tbody.innerHTML="";
+const {data,error}=await supabaseClient
+.from("stock")
+.select("barcode,shelf_id,shelves(name)")
+.order("id",{ascending:true});
+
+if(error){
+console.error(error);
+document.getElementById("status").textContent="❌ Erreur de lecture du stock.";
+return;
+}
+
+const produitsUniques=new Map();
+(data||[]).forEach(article=>{
+const code=String(article.barcode||"").trim();
+if(!code)return;
+if(!produitsUniques.has(code)){
+produitsUniques.set(code,article);
+}
+});
+
+const parRayon=new Map();
+produitsUniques.forEach(article=>{
+const nom=article.shelves?article.shelves.name:"Non défini";
+parRayon.set(nom,(parRayon.get(nom)||0)+1);
+});
+
+if(parRayon.size===0){
+const tr=document.createElement("tr");
+const td=document.createElement("td");
+td.colSpan=2;
+td.textContent="Aucun produit enregistré.";
+td.className="emptyMessage";
+tr.appendChild(td);
+tbody.appendChild(tr);
+return;
+}
+
+parRayon.forEach((total,nom)=>{
+const tr=document.createElement("tr");
+const tdRayon=document.createElement("td");
+tdRayon.textContent=nom;
+const tdStock=document.createElement("td");
+tdStock.textContent=total;
+tr.appendChild(tdRayon);
+tr.appendChild(tdStock);
+tbody.appendChild(tr);
+});
+}
+
+async function rechercher(){
+const code=document.getElementById("barcode").value.trim();
+if(code==="")return;
+
+const {data,error}=await supabaseClient
+.from("stock")
+.select("barcode,quantity,shelf_id,shelves(name)")
+.eq("barcode",code)
+.maybeSingle();
+
+if(error){
+console.error(error);
+document.getElementById("status").textContent="❌ Erreur de recherche.";
+return;
+}
+if(!data){
+document.getElementById("status").textContent="❌ Produit introuvable";
+alert("Produit introuvable.");
+return;
+}
+
+const nomRayon=data.shelves?data.shelves.name:"Non défini";
+document.getElementById("status").textContent="✅ Rayon : "+nomRayon;
+alert("📦 Produit\n\nCode : "+code+"\nRayon : "+nomRayon);
+document.getElementById("barcode").value="";
+document.getElementById("barcode").focus();
+}
+
+/* Un produit = un code-barres unique.
+   Si le même code est scanné à nouveau, il est ignoré immédiatement,
+   sans alerte et sans augmenter le stock. */
+async function enregistrer(){
+const rayon=document.getElementById("rayon").value.trim();
+const code=document.getElementById("barcode").value.trim();
+
+if(rayon===""){
+alert("Veuillez choisir le rayon.");
+document.getElementById("rayon").focus();
+return;
+}
+if(code==="")return;
+
+const {data:shelf,error:shelfError}=await supabaseClient
+.from("shelves")
+.select("id,name")
+.eq("name",rayon)
+.maybeSingle();
+
+if(shelfError){
+console.error(shelfError);
+alert("❌ Erreur lors de la recherche du rayon.");
+return;
+}
+if(!shelf){
+alert("❌ Rayon introuvable.");
+await chargerRayons();
+return;
+}
+
+const {data:produit,error:produitError}=await supabaseClient
+.from("stock")
+.select("*")
+.eq("barcode",code)
+.maybeSingle();
+
+if(produitError){
+console.error(produitError);
+alert("❌ Erreur lors de la recherche du produit.");
+return;
+}
+
+if(mode==="entree"){
+if(produit){
+/* Même produit scanné à nouveau : on met à jour son rayon.
+   Pas de sortie, pas de doublon : le dernier rayon devient le rayon actuel. */
+const ancienRayonId=produit.shelf_id;
+const {error}=await supabaseClient
+.from("stock")
+.update({
+    shelf_id:shelf.id,
+    employee_name:utilisateurConnecte?utilisateurConnecte.nom:null
+})
+.eq("id",produit.id);
+
+if(error){
+console.error(error);
+alert("❌ Erreur lors de la mise à jour du rayon.");
+return;
+}
+
+document.getElementById("status").textContent=
+    ancienRayonId===shelf.id
+    ? "✅ Produit déjà dans ce rayon"
+    : "✅ Rayon du produit mis à jour : "+shelf.name;
+
+await afficher();
+document.getElementById("barcode").value="";
+document.getElementById("barcode").focus();
+return;
+}
+
+const {error}=await supabaseClient.from("stock").insert({
+barcode:code,
+shelf_id:shelf.id,
+quantity:1,
+employee_name:utilisateurConnecte?utilisateurConnecte.nom:null
+});
+
+if(error){
+console.error(error);
+alert("❌ Erreur lors de la création du produit.");
+return;
+}
+
+document.getElementById("status").textContent="✅ Entrée enregistrée";
+}
+
+if(mode==="sortie"){
+if(!produit){
+alert("❌ Ce produit n'existe pas dans le stock.");
+return;
+}
+
+const {error}=await supabaseClient
+.from("stock")
+.delete()
+.eq("id",produit.id);
+
+if(error){
+console.error(error);
+alert("❌ Erreur lors de la sortie.");
+return;
+}
+
+document.getElementById("status").textContent="✅ Sortie enregistrée";
+}
+
+await afficher();
+document.getElementById("barcode").value="";
+document.getElementById("barcode").focus();
+}
+
+document.getElementById("barcode").addEventListener("keydown",function(event){
+if(event.key!=="Enter")return;
+event.preventDefault();
+if(mode==="recherche")rechercher();
+else enregistrer();
+});
+
+async function chargerRayons(){
+const select=document.getElementById("rayon");
+if(!select)return;
+
+const {data,error}=await supabaseClient
+.from("shelves")
+.select("id,name")
+.order("id",{ascending:true});
+
+if(error){
+console.error(error);
+document.getElementById("status").textContent="❌ Erreur de connexion aux rayons.";
+return;
+}
+
+rayons=(data||[]).map(rayon=>({id:rayon.id,name:rayon.name}));
+select.innerHTML='<option value="">Choisir un rayon</option>';
+
+rayons.forEach(rayon=>{
+const option=document.createElement("option");
+option.value=rayon.name;
+option.textContent=rayon.name;
+select.appendChild(option);
+});
+afficherListeRayons();
+}
+
+function afficherListeRayons(){
+const liste=document.getElementById("listeRayons");
+if(!liste)return;
+liste.innerHTML="";
+
+rayons.forEach(rayon=>{
+const div=document.createElement("div");
+div.className="rayonItem";
+
+const nom=document.createElement("span");
+nom.className="rayonName";
+nom.textContent="📦 "+rayon.name;
+
+const actions=document.createElement("div");
+actions.className="rayonActions";
+
+const btnProduits=document.createElement("button");
+btnProduits.className="btnProduitsRayon";
+btnProduits.textContent="📋 Produits";
+btnProduits.onclick=()=>voirProduitsRayon(rayon.id,rayon.name);
+
+const boutonModifier=document.createElement("button");
+boutonModifier.className="btnModifierRayon";
+boutonModifier.textContent="✏️ Modifier";
+boutonModifier.onclick=()=>modifierRayon(rayon.id,rayon.name);
+
+const boutonSupprimer=document.createElement("button");
+boutonSupprimer.className="btnSupprimerRayon";
+boutonSupprimer.textContent="🗑️ Supprimer";
+boutonSupprimer.onclick=()=>supprimerRayon(rayon.id,rayon.name);
+
+actions.appendChild(btnProduits);
+actions.appendChild(boutonModifier);
+actions.appendChild(boutonSupprimer);
+div.appendChild(nom);
+div.appendChild(actions);
+liste.appendChild(div);
+});
+}
+
+function gererRayons(){
+if(!utilisateurConnecte)return;
+document.getElementById("rayonsBox").style.display="block";
+document.getElementById("produitsBox").style.display="none";
+afficherListeRayons();
+document.getElementById("nouveauRayon").focus();
+}
+
+async function ajouterRayon(){
+const nouveauRayon=document.getElementById("nouveauRayon").value.trim();
+if(nouveauRayon===""){
+alert("Veuillez saisir le nom du rayon.");
+return;
+}
+
+const existe=rayons.some(rayon=>rayon.name.toLowerCase()===nouveauRayon.toLowerCase());
+if(existe){
+alert("Ce rayon existe déjà.");
+return;
+}
+
+const {error}=await supabaseClient.from("shelves").insert({name:nouveauRayon});
+if(error){
+console.error(error);
+alert("❌ Erreur lors de l'ajout du rayon.");
+return;
+}
+
+document.getElementById("nouveauRayon").value="";
+await chargerRayons();
+alert("✅ Rayon ajouté avec succès.");
+document.getElementById("nouveauRayon").focus();
+}
+
+/* Nouveau : modifier le nom d'un rayon */
+async function modifierRayon(id,ancienNom){
+const nouveauNom=prompt("Nouveau nom du rayon :",ancienNom);
+if(nouveauNom===null)return;
+
+const nom=nouveauNom.trim();
+if(nom===""||nom===ancienNom)return;
+
+const existe=rayons.some(rayon=>rayon.id!==id && rayon.name.toLowerCase()===nom.toLowerCase());
+if(existe){
+alert("Ce rayon existe déjà.");
+return;
+}
+
+const {error}=await supabaseClient
+.from("shelves")
+.update({name:nom})
+.eq("id",id);
+
+if(error){
+console.error(error);
+alert("❌ Impossible de modifier le nom du rayon.");
+return;
+}
+
+await chargerRayons();
+await afficher();
+
+const produitsBox=document.getElementById("produitsBox");
+if(produitsBox.style.display==="block"){
+await voirProduitsRayon(id,nom);
+}
+}
+
+async function voirProduitsRayon(shelfId,shelfName){
+document.getElementById("produitsBox").style.display="block";
+document.getElementById("produitsTitre").textContent="📋 Produits du rayon : "+shelfName;
+const liste=document.getElementById("produitsListe");
+liste.innerHTML="Chargement...";
+
+const {data,error}=await supabaseClient
+.from("stock")
+.select("id,barcode")
+.eq("shelf_id",shelfId)
+.order("id",{ascending:true});
+
+if(error){
+console.error(error);
+liste.innerHTML='<div class="emptyMessage">❌ Erreur de lecture.</div>';
+return;
+}
+
+liste.innerHTML="";
+const produitsUniques=new Map();
+(data||[]).forEach(p=>{
+const code=String(p.barcode||"").trim();
+if(code&&!produitsUniques.has(code))produitsUniques.set(code,p);
+});
+
+if(produitsUniques.size===0){
+liste.innerHTML='<div class="emptyMessage">Aucun produit dans ce rayon.</div>';
+return;
+}
+
+produitsUniques.forEach(produit=>{
+const div=document.createElement("div");
+div.className="produitItem";
+
+const checkbox=document.createElement("input");
+checkbox.type="checkbox";
+checkbox.className="selectionProduit";
+checkbox.dataset.id=produit.id;
+checkbox.dataset.barcode=produit.barcode;
+
+const code=document.createElement("span");
+code.className="produitCode";
+code.textContent=produit.barcode;
+
+div.appendChild(checkbox);
+div.appendChild(code);
+liste.appendChild(div);
+});
+}
+
+async function supprimerProduitsSelectionnes(){
+const cases=document.querySelectorAll("#produitsListe .selectionProduit:checked");
+
+if(cases.length===0){
+alert("Veuillez sélectionner au moins un produit.");
+return;
+}
+
+const ids=Array.from(cases).map(c=>c.dataset.id);
+const confirmation=confirm("Supprimer "+ids.length+" produit(s) sélectionné(s) ?");
+if(!confirmation)return;
+
+const {error}=await supabaseClient
+.from("stock")
+.delete()
+.in("id",ids);
+
+if(error){
+console.error(error);
+alert("❌ Impossible de supprimer les produits sélectionnés.");
+return;
+}
+
+const titre=document.getElementById("produitsTitre").textContent;
+const prefix="📋 Produits du rayon : ";
+const shelfName=titre.startsWith(prefix)?titre.substring(prefix.length):"";
+const rayon=rayons.find(r=>r.name===shelfName);
+
+await afficher();
+if(rayon){
+await voirProduitsRayon(rayon.id,rayon.name);
+}
+
+document.getElementById("status").textContent="✅ "+ids.length+" produit(s) supprimé(s)";
+}
+
+function fermerProduits(){
+document.getElementById("produitsBox").style.display="none";
+}
+
+async function supprimerRayon(id,name){
+if(!confirm("Supprimer le rayon : "+name+" ?"))return;
+
+const {error}=await supabaseClient.from("shelves").delete().eq("id",id);
+if(error){
+console.error(error);
+alert("❌ Impossible de supprimer ce rayon.\n\nIl est peut-être utilisé par un produit.");
+return;
+}
+
+fermerProduits();
+await chargerRayons();
+await afficher();
+alert("✅ Rayon supprimé : "+name);
+}
+
+function fermerGestionRayons(){
+document.getElementById("rayonsBox").style.display="none";
+fermerProduits();
+}
+
+window.onload=function(){
+document.getElementById("loginNom").focus();
+};
+</script>
+</body>
+</html>
